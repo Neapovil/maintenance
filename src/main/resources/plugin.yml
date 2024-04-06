@@ -7,5 +7,9 @@ website: https://github.com/Neapovil/maintenance
 depend:
   - CommandAPI
 permissions:
-  maintenance.command:
+  maintenance.command.reload:
+    default: op
+  maintenance.command.set:
+    default: op
+  maintenance.bypass:
     default: op
