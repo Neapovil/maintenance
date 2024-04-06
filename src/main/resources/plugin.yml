@@ -1,11 +1,11 @@
-name: CHANGE
-main: com.github.neapovil.change.Change
+name: Maintenance
+main: com.github.neapovil.maintenance.Maintenance
 version: 1.0.0
 api-version: 1.19
 author: Neapovil
-website: https://github.com/Neapovil/CHANGE
+website: https://github.com/Neapovil/maintenance
 depend:
   - CommandAPI
 permissions:
-  CHANGE.command:
+  maintenance.command:
     default: op
