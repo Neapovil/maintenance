@@ -1,9 +1,6 @@
 package com.github.neapovil.maintenance;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
+import java.nio.file.Path;
 
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -11,6 +8,7 @@ import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import com.destroystokyo.paper.event.server.PaperServerListPingEvent;
+import com.github.neapovil.core.Core;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -22,20 +20,26 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 public final class Maintenance extends JavaPlugin implements Listener
 {
     private static Maintenance instance;
-    private ConfigResource configResource;
-    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+    public ConfigResource configResource;
+    public final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+    public final Path configPath = this.getDataFolder().toPath().resolve("config.json");
 
     @Override
     public void onEnable()
     {
         instance = this;
 
-        this.load().exceptionally(e -> {
-            if (e != null)
+        final Core core = Core.instance();
+
+        core.loadResource(this, this.configPath).whenComplete((result, ex) -> {
+            if (ex == null)
             {
-                e.printStackTrace();
+                this.configResource = this.gson.fromJson(result, ConfigResource.class);
             }
-            return null;
+            else
+            {
+                ex.printStackTrace();
+            }
         });
 
         this.getServer().getPluginManager().registerEvents(this, this);
@@ -44,17 +48,17 @@ public final class Maintenance extends JavaPlugin implements Listener
                 .withPermission("maintenance.command.reload")
                 .withArguments(new LiteralArgument("reload"))
                 .executes((sender, args) -> {
-                    this.load().handle((a, b) -> {
-                        if (b == null)
+                    core.loadResource(this, this.configPath).whenComplete((result, ex) -> {
+                        if (ex == null)
                         {
+                            this.configResource = this.gson.fromJson(result, ConfigResource.class);
                             sender.sendMessage("Config reloaded");
                         }
                         else
                         {
-                            sender.sendRichMessage("<red>Unable to reload config: " + b.getMessage());
-                            this.getLogger().severe(b.getMessage());
+                            sender.sendRichMessage("<red>Unable to reload config: " + ex.getMessage());
+                            this.getLogger().severe(ex.getMessage());
                         }
-                        return null;
                     });
                 })
                 .register();
@@ -67,18 +71,18 @@ public final class Maintenance extends JavaPlugin implements Listener
                     final boolean bool = (boolean) args.get("bool");
 
                     this.configResource.enabled = bool;
+                    final String string = this.gson.toJson(this.configResource);
 
-                    this.save().handle((a, b) -> {
-                        if (b == null)
+                    core.saveResource(this.configPath, string).whenComplete((result, ex) -> {
+                        if (ex == null)
                         {
                             sender.sendMessage("Maintenance status changed to: " + bool);
                         }
                         else
                         {
-                            sender.sendRichMessage("<red>Unable to toggle status: " + b.getMessage());
-                            this.getLogger().severe(b.getMessage());
+                            sender.sendRichMessage("<red>Unable to toggle status: " + ex.getMessage());
+                            this.getLogger().severe(ex.getMessage());
                         }
-                        return null;
                     });
                 })
                 .register();
@@ -87,37 +91,6 @@ public final class Maintenance extends JavaPlugin implements Listener
     public static Maintenance instance()
     {
         return instance;
-    }
-
-    public CompletableFuture<Void> load()
-    {
-        return CompletableFuture.runAsync(() -> {
-            this.saveResource("config.json", false);
-            try
-            {
-                final String string = Files.readString(this.getDataFolder().toPath().resolve("config.json"));
-                this.configResource = this.gson.fromJson(string, ConfigResource.class);
-            }
-            catch (IOException e)
-            {
-                throw new CompletionException(e);
-            }
-        });
-    }
-
-    public CompletableFuture<Void> save()
-    {
-        return CompletableFuture.runAsync(() -> {
-            final String string = this.gson.toJson(this.configResource);
-            try
-            {
-                Files.write(this.getDataFolder().toPath().resolve("config.json"), string.getBytes());
-            }
-            catch (IOException e)
-            {
-                throw new CompletionException(e);
-            }
-        });
     }
 
     @EventHandler

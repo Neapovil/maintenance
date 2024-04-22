@@ -6,6 +6,7 @@ author: Neapovil
 website: https://github.com/Neapovil/maintenance
 depend:
   - CommandAPI
+  - Core
 permissions:
   maintenance.command.reload:
     default: op
