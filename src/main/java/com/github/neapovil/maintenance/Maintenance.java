@@ -15,6 +15,7 @@ import com.google.gson.GsonBuilder;
 import dev.jorel.commandapi.CommandAPICommand;
 import dev.jorel.commandapi.arguments.BooleanArgument;
 import dev.jorel.commandapi.arguments.LiteralArgument;
+import io.papermc.paper.util.MCUtil;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 
 public final class Maintenance extends JavaPlugin implements Listener
@@ -48,7 +49,7 @@ public final class Maintenance extends JavaPlugin implements Listener
                 .withPermission("maintenance.command.reload")
                 .withArguments(new LiteralArgument("reload"))
                 .executes((sender, args) -> {
-                    core.loadResource(this, this.configPath).whenComplete((result, ex) -> {
+                    core.loadResource(this, this.configPath).whenCompleteAsync((result, ex) -> {
                         if (ex == null)
                         {
                             this.configResource = this.gson.fromJson(result, ConfigResource.class);
@@ -59,7 +60,7 @@ public final class Maintenance extends JavaPlugin implements Listener
                             sender.sendRichMessage("<red>Unable to reload config: " + ex.getMessage());
                             this.getLogger().severe(ex.getMessage());
                         }
-                    });
+                    }, MCUtil.MAIN_EXECUTOR);
                 })
                 .register();
 
@@ -73,7 +74,7 @@ public final class Maintenance extends JavaPlugin implements Listener
                     this.configResource.enabled = bool;
                     final String string = this.gson.toJson(this.configResource);
 
-                    core.saveResource(this.configPath, string).whenComplete((result, ex) -> {
+                    core.saveResource(this.configPath, string).whenCompleteAsync((result, ex) -> {
                         if (ex == null)
                         {
                             sender.sendMessage("Maintenance status changed to: " + bool);
@@ -83,7 +84,7 @@ public final class Maintenance extends JavaPlugin implements Listener
                             sender.sendRichMessage("<red>Unable to toggle status: " + ex.getMessage());
                             this.getLogger().severe(ex.getMessage());
                         }
-                    });
+                    }, MCUtil.MAIN_EXECUTOR);
                 })
                 .register();
     }
