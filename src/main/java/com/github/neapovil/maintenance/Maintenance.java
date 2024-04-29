@@ -1,6 +1,7 @@
 package com.github.neapovil.maintenance;
 
 import java.nio.file.Path;
+import java.util.concurrent.CompletableFuture;
 
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -30,18 +31,7 @@ public final class Maintenance extends JavaPlugin implements Listener
     {
         instance = this;
 
-        final Core core = Core.instance();
-
-        core.loadResource(this, this.configPath).whenComplete((result, ex) -> {
-            if (ex == null)
-            {
-                this.configResource = this.gson.fromJson(result, ConfigResource.class);
-            }
-            else
-            {
-                ex.printStackTrace();
-            }
-        });
+        this.load();
 
         this.getServer().getPluginManager().registerEvents(this, this);
 
@@ -49,18 +39,7 @@ public final class Maintenance extends JavaPlugin implements Listener
                 .withPermission("maintenance.command.reload")
                 .withArguments(new LiteralArgument("reload"))
                 .executes((sender, args) -> {
-                    core.loadResource(this, this.configPath).whenCompleteAsync((result, ex) -> {
-                        if (ex == null)
-                        {
-                            this.configResource = this.gson.fromJson(result, ConfigResource.class);
-                            sender.sendMessage("Config reloaded");
-                        }
-                        else
-                        {
-                            sender.sendRichMessage("<red>Unable to reload config: " + ex.getMessage());
-                            this.getLogger().severe(ex.getMessage());
-                        }
-                    }, MCUtil.MAIN_EXECUTOR);
+                    this.load();
                 })
                 .register();
 
@@ -72,19 +51,13 @@ public final class Maintenance extends JavaPlugin implements Listener
                     final boolean bool = (boolean) args.get("bool");
 
                     this.configResource.enabled = bool;
-                    final String string = this.gson.toJson(this.configResource);
 
-                    core.saveResource(this.configPath, string).whenCompleteAsync((result, ex) -> {
+                    this.save().whenComplete((result, ex) -> {
                         if (ex == null)
                         {
                             sender.sendMessage("Maintenance status changed to: " + bool);
                         }
-                        else
-                        {
-                            sender.sendRichMessage("<red>Unable to toggle status: " + ex.getMessage());
-                            this.getLogger().severe(ex.getMessage());
-                        }
-                    }, MCUtil.MAIN_EXECUTOR);
+                    });
                 })
                 .register();
     }
@@ -92,6 +65,24 @@ public final class Maintenance extends JavaPlugin implements Listener
     public static Maintenance instance()
     {
         return instance;
+    }
+
+    private CompletableFuture<String> load()
+    {
+        final Core core = Core.instance();
+        return core.loadResource(this, this.configPath).whenCompleteAsync((result, ex) -> {
+            if (result != null)
+            {
+                this.configResource = this.gson.fromJson(result, ConfigResource.class);
+            }
+        }, MCUtil.MAIN_EXECUTOR);
+    }
+
+    private CompletableFuture<Void> save()
+    {
+        final Core core = Core.instance();
+        final String string = this.gson.toJson(this.configResource);
+        return core.saveResource(this.configPath, string);
     }
 
     @EventHandler
